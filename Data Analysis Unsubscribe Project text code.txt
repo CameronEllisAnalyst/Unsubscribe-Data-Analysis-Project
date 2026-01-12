@@ -1,0 +1,124 @@
+Data Analysis Unsubscribe Project Text Code:
+
+question 1. Overall Unsubscribe Rate
+
+SELECT
+    SUM(unsubscribe) AS total_unsubscribed,
+    COUNT(unsubscribe) AS total_subscribers,
+    CAST(SUM(unsubscribe) AS REAL) * 100 / COUNT(unsubscribe) AS unsubscribe_rate_percent
+FROM
+    Email_Engagement;
+
+
+Question 2. Campaigns with the highest/lowest unsubscribe rate.
+
+SELECT
+    campaign_id,
+    COUNT(*) AS total_emails_sent,
+    SUM(CAST(unsubscribe AS int)) AS total_unsubscribes,
+    AVG(CAST(unsubscribe AS int)) * 100 AS unsubscribe_rate_percentage
+FROM
+    Email_Engagement
+GROUP BY
+    campaign_id
+
+adding in:
+ORDER BY unsubscribe_rate_percentage DESC
+not DESC as well to get highest and lowest rates here.
+
+
+Question 3. How long after signup do users typically unsubscribe?
+
+
+
+code for new table for question 3:
+SELECT signup_date, unsubscribe_date, unsubscribes.user_id AS unsubscribes_user_id_column, users.user_id AS user_user_id_column,
+julianday(unsubscribe_date) - julianday(signup_date) AS unsubscribe_time
+FROM Unsubscribes
+JOIN Users
+ON Unsubscribes.user_id = Users.user_id
+WHERE unsubscribe_date > signup_date
+
+Need to include the last part as some of the signup dates were after the unsubscribe dates, which makes no sense and shouldn't be added to our average here. 
+
+Code for average:
+SELECT AVG(unsubscribe_time)
+FROM
+(SELECT signup_date, unsubscribe_date, unsubscribes.user_id AS unsubscribes_user_id_column, users.user_id AS user_user_id_column,
+julianday(unsubscribe_date) - julianday(signup_date) AS unsubscribe_time
+FROM Unsubscribes
+JOIN Users
+ON Unsubscribes.user_id = Users.user_id
+WHERE unsubscribe_date > signup_date)
+
+So roughly an average of 235 days to unsubscribe.
+
+Code for median: again, may do this in Tableau for more ease:
+
+SELECT unsubscribe_time
+FROM
+(SELECT signup_date, unsubscribe_date, unsubscribes.user_id AS unsubscribes_user_id_column, users.user_id AS user_user_id_column,
+julianday(unsubscribe_date) - julianday(signup_date) AS unsubscribe_time
+FROM Unsubscribes
+JOIN Users
+ON Unsubscribes.user_id = Users.user_id
+WHERE unsubscribe_date > signup_date)
+ORDER BY unsubscribe_time
+LIMIT 1
+OFFSET (SELECT COUNT(*)
+        FROM (SELECT signup_date, unsubscribe_date, unsubscribes.user_id AS unsubscribes_user_id_column, users.user_id AS user_user_id_column,
+julianday(unsubscribe_date) - julianday(signup_date) AS unsubscribe_time
+FROM Unsubscribes
+JOIN Users
+ON Unsubscribes.user_id = Users.user_id
+WHERE unsubscribe_date > signup_date)) / 2
+
+The median is 221 days here. 
+
+Use ORDER BY unsubscribe_time DESC or not DESC to see who's churning the quickest
+
+so we can take the average code and alter it just slightly, putting in the subquery:
+
+ORDER BY signup_date DESC
+LIMIT x amount
+
+Looks like the new users are unsubscribing quicker, there is in fact a trend.
+
+Question 4: What are the most common unsubscribe reasons, and do they vary by campaign category?
+
+Code for seeing the most common unsubscribe reasons:
+
+SELECT COUNT(*) AS reason_count, reason
+FROM Unsubscribes
+GROUP BY reason
+ORDER BY reason_count DESC;
+
+
+
+to look based on category, code this:
+
+SELECT COUNT(Unsubscribes.reason), reason, category
+FROM Unsubscribes
+JOIN Campaigns
+ON Unsubscribes.campaign_id = Campaigns.campaign_id
+GROUP BY category, reason
+ORDER BY category, COUNT(Unsubscribes.reason) DESC
+
+to look based on reason grouping first, code this:
+
+SELECT COUNT(Unsubscribes.reason), reason, category
+FROM Unsubscribes
+JOIN Campaigns
+ON Unsubscribes.campaign_id = Campaigns.campaign_id
+GROUP BY category, reason
+ORDER BY reason, COUNT(Unsubscribes.reason) DESC
+
+overarching code that we will add to Tableau:
+
+SELECT COUNT(Unsubscribes.reason), reason, category
+FROM Unsubscribes
+JOIN Campaigns
+ON Unsubscribes.campaign_id = Campaigns.campaign_id
+GROUP BY category, reason
+
+
